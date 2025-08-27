@@ -37,8 +37,7 @@ pub fn start_frame(rt: *Runtime, shared_params: *const SharedParams) !void {
             (shared_params.seed + i) % std.math.maxInt(usize),
         );
         defer rt.allocator.free(sub_chain);
-
-        const subpath = try std.fmt.allocPrintZ(rt.allocator, "{s}-{d}", .{ shared_params.seed_string, i });
+        const subpath = try std.fmt.allocPrintSentinel(rt.allocator, "{s}-{d}", .{ shared_params.seed_string, i }, 0x0);
         defer rt.allocator.free(subpath);
 
         chain_ptr.* = try FileChain.init(

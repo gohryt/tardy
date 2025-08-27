@@ -22,7 +22,7 @@ fn echo_frame(rt: *Runtime, server: *const Socket) !void {
     const writer = socket.writer(rt);
 
     log.debug(
-        "{d} - accepted socket [{}]",
+        "{d} - accepted socket [{f}]",
         .{ std.time.milliTimestamp(), socket.addr },
     );
 
@@ -46,11 +46,11 @@ fn echo_frame(rt: *Runtime, server: *const Socket) !void {
 }
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa: std.heap.DebugAllocator(.{}) = .init;
     const allocator = gpa.allocator();
     defer _ = gpa.deinit();
 
-    var tardy = try Tardy.init(allocator, .{
+    var tardy: Tardy = try .init(allocator, .{
         .threading = .single,
         .pooling = .static,
         .size_tasks_initial = 256,
@@ -61,7 +61,7 @@ pub fn main() !void {
     const host = "0.0.0.0";
     const port = 9862;
 
-    const server = try Socket.init(.{ .tcp = .{ .host = host, .port = port } });
+    const server: Socket = try .init(.{ .tcp = .{ .host = host, .port = port } });
     try server.bind();
     try server.listen(1024);
 

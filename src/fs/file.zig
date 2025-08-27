@@ -423,6 +423,7 @@ pub const File = packed struct {
                     StdFile.StatError.AccessDenied => StatError.AccessDenied,
                     StdFile.StatError.SystemResources => StatError.OutOfMemory,
                     StdFile.StatError.Unexpected => StatError.Unexpected,
+                    StdFile.StatError.PermissionDenied => StatError.PermissionDenied,
                 };
             };
 
@@ -472,7 +473,7 @@ pub const File = packed struct {
 
     pub fn stream(self: *const File) Stream {
         return Stream{
-            .inner = @constCast(@ptrCast(self)),
+            .inner = @ptrCast(@constCast(self)),
             .vtable = .{
                 .read = struct {
                     fn read(inner: *anyopaque, rt: *Runtime, buffer: []u8) !usize {

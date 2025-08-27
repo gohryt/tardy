@@ -40,7 +40,7 @@ pub fn main() !void {
     // max u64 is 21 characters long :p
     var maybe_seed_buffer: [21]u8 = undefined;
     const seed_string = args.next() orelse blk: {
-        const stdin = std.io.getStdIn();
+        const stdin = std.fs.File.stdin();
         const bytes = try stdin.readToEndAlloc(allocator, std.math.maxInt(usize));
         defer allocator.free(bytes);
 
@@ -71,7 +71,7 @@ pub fn main() !void {
         p.size_aio_reap_max = rand.intRangeAtMost(usize, 1, p.size_tasks_initial * 2);
         break :blk p;
     };
-    log.debug("{s}", .{std.json.fmt(shared, .{ .whitespace = .indent_1 })});
+    log.debug("{f}", .{std.json.fmt(shared, .{ .whitespace = .indent_1 })});
 
     var tardy = try Tardy.init(allocator, .{
         .threading = .{ .multi = 2 },

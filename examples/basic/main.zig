@@ -20,7 +20,7 @@ fn log_frame(rt: *Runtime) !void {
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
 
-    var tardy = try Tardy.init(allocator, .{
+    var tardy: Tardy = try .init(allocator, .{
         .threading = .single,
         .pooling = .static,
         .size_tasks_initial = 2,

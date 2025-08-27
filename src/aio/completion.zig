@@ -156,6 +156,7 @@ pub const StatError = error{
     OutOfMemory,
     NotADirectory,
     Unexpected,
+    PermissionDenied,
 };
 
 pub const MkdirError = error{

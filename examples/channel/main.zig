@@ -41,7 +41,7 @@ fn consumer_frame(_: *Runtime, consumer: Spsc(usize).Consumer) !void {
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
 
-    var tardy = try Tardy.init(allocator, .{
+    var tardy: Tardy = try .init(allocator, .{
         .threading = .{ .multi = 2 },
         .pooling = .static,
         .size_tasks_initial = 1,
@@ -49,7 +49,7 @@ pub fn main() !void {
     });
     defer tardy.deinit();
 
-    var channel = try Spsc(usize).init(allocator, 2);
+    var channel: Spsc(usize) = try .init(allocator, 2);
     defer channel.deinit();
 
     try tardy.entry(

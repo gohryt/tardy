@@ -2,7 +2,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const assert = std.debug.assert;
 
-const zig_version = std.SemanticVersion{ .major = 0, .minor = 14, .patch = 1 };
+const zig_version = std.SemanticVersion{ .major = 0, .minor = 15, .patch = 1 };
 
 comptime {
     // Compare versions while allowing different pre/patch metadata.
@@ -11,7 +11,7 @@ comptime {
         zig_version.patch == builtin.zig_version.patch;
     if (!zig_version_eq) {
         @compileError(std.fmt.comptimePrint(
-            "unsupported zig version: expected {}, found {}",
+            "unsupported zig version: expected {f}, found {f}",
             .{ zig_version, builtin.zig_version },
         ));
     }
@@ -20,7 +20,6 @@ comptime {
 const Example = enum {
     none,
     all,
-
     basic,
     cat,
     channel,
@@ -253,6 +252,8 @@ fn build_example_exe(
     const example_exe = b.addExecutable(.{
         .name = options.example.toString(),
         .root_module = example_mod,
+        // without llvm leads to error: undefined symbol: tardy_swap_frame
+        .use_llvm = true,
     });
 
     const install_artifact = b.addInstallArtifact(example_exe, .{});
@@ -268,6 +269,11 @@ fn build_example_exe(
     // depend on run step
     const run_artifact = b.addRunArtifact(example_exe);
     run_artifact.step.dependOn(&install_artifact.step);
+
+    // pass args to examples (.ie cat, rmdir, shove, stat)
+    if (b.args) |args| {
+        run_artifact.addArgs(args);
+    }
 
     steps.run.dependOn(&install_artifact.step);
     steps.run.dependOn(&run_artifact.step);
@@ -317,9 +323,11 @@ fn build_test(
     // usage: zig build test_unit
     const unit_tests = b.addTest(.{
         .name = "general unit tests",
-        .root_source_file = b.path("./src/tests.zig"),
-        .optimize = options.optimize,
-        .target = options.target,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("./src/tests.zig"),
+            .optimize = options.optimize,
+            .target = options.target,
+        }),
     });
 
     const run_unit_tests = b.addRunArtifact(unit_tests);
@@ -355,6 +363,7 @@ fn build_test_e2e(
         .root_source_file = b.path("test/e2e/main.zig"),
         .target = options.target,
         .optimize = options.optimize,
+        .strip = false,
     });
 
     e2e_mod.addImport("tardy", options.tardy_mod);
@@ -374,7 +383,8 @@ fn build_test_e2e(
     const exe = b.addExecutable(.{
         .name = "e2e",
         .root_module = e2e_mod,
-        .strip = false,
+        // without llvm leads to error: undefined symbol: tardy_swap_frame
+        .use_llvm = true,
     });
 
     // build/install e2e test

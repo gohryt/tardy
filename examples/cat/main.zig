@@ -38,11 +38,11 @@ fn main_frame(rt: *Runtime, p: *EntryParams) !void {
 }
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{ .thread_safe = true }){};
+    var gpa: std.heap.DebugAllocator(.{ .thread_safe = true }) = .init;
     const allocator = gpa.allocator();
     defer _ = gpa.deinit();
 
-    var tardy = try Tardy.init(allocator, .{
+    var tardy: Tardy = try .init(allocator, .{
         .threading = .single,
         .pooling = .static,
         .size_tasks_initial = 1,
@@ -59,7 +59,7 @@ pub fn main() !void {
             if (i == 1) break :blk arg;
         }
 
-        try std.io.getStdOut().writeAll("file name not passed in: ./cat [file name]");
+        try std.fs.File.stdout().writeAll("file name not passed in: ./cat [file name]");
         return;
     };
 

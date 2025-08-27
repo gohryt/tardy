@@ -32,7 +32,7 @@ fn stream_frame(rt: *Runtime, server: *const Socket, file_name: [:0]const u8) !v
     defer file.close_blocking();
 
     log.debug(
-        "{d} - accepted socket [{}]",
+        "{d} - accepted socket [{f}]",
         .{ std.time.milliTimestamp(), socket.addr },
     );
 
@@ -41,11 +41,11 @@ fn stream_frame(rt: *Runtime, server: *const Socket, file_name: [:0]const u8) !v
 }
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa: std.heap.DebugAllocator(.{}) = .init;
     const allocator = gpa.allocator();
     defer _ = gpa.deinit();
 
-    var tardy = try Tardy.init(allocator, .{
+    var tardy: Tardy = try .init(allocator, .{
         .threading = .single,
         .pooling = .static,
         .size_tasks_initial = 2,
@@ -56,7 +56,7 @@ pub fn main() !void {
     const host = "0.0.0.0";
     const port = 9862;
 
-    const server = try Socket.init(.{ .tcp = .{ .host = host, .port = port } });
+    const server: Socket = try .init(.{ .tcp = .{ .host = host, .port = port } });
     try server.bind();
     try server.listen(1024);
 
@@ -69,7 +69,7 @@ pub fn main() !void {
             if (i == 1) break :blk arg;
         }
 
-        try std.io.getStdOut().writeAll("file name not passed in: ./stream [file name]");
+        try std.fs.File.stdout().writeAll("file name not passed in: ./stream [file name]");
         return;
     };
 
