@@ -1,18 +1,17 @@
 const std = @import("std");
-const log = std.log.scoped(.@"tardy/example/echo");
-
-const Pool = @import("tardy").Pool;
-const Runtime = @import("tardy").Runtime;
-const Task = @import("tardy").Task;
-const Tardy = @import("tardy").Tardy(.auto);
-const Cross = @import("tardy").Cross;
-
-const Socket = @import("tardy").Socket;
-const Timer = @import("tardy").Timer;
 
 const AcceptResult = @import("tardy").AcceptResult;
+const Cross = @import("tardy").Cross;
+const Pool = @import("tardy").Pool;
 const RecvResult = @import("tardy").RecvResult;
+const Runtime = @import("tardy").Runtime;
 const SendResult = @import("tardy").SendResult;
+const Socket = @import("tardy").Socket;
+const Task = @import("tardy").Task;
+const Timer = @import("tardy").Timer;
+
+const Tardy = @import("tardy").Tardy(.auto);
+const log = std.log.scoped(.@"tardy/example/echo");
 
 const STACK_SIZE: usize = 1024 * 16;
 const HTTP_RESPONSE = "HTTP/1.1 200 OK\r\nConnection: keep-alive\r\nContent-Length: 27\r\nContent-Type: text/plain\r\n\r\nThis is an HTTP benchmark\r\n";

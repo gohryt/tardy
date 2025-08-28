@@ -1,7 +1,6 @@
-const Runtime = @import("lib.zig").Runtime;
-const Timespec = @import("../lib.zig").Timespec;
-
 const Frame = @import("../frame/lib.zig").Frame;
+const Timespec = @import("../lib.zig").Timespec;
+const Runtime = @import("lib.zig").Runtime;
 
 pub const Timer = struct {
     pub fn delay(rt: *Runtime, timespec: Timespec) !void {

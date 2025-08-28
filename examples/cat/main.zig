@@ -1,21 +1,19 @@
 const std = @import("std");
-const log = std.log.scoped(.@"tardy/example/cat");
 
-const Runtime = @import("tardy").Runtime;
-const Frame = @import("tardy").Frame;
-const Task = @import("tardy").Task;
-const Tardy = @import("tardy").Tardy(.auto);
 const Cross = @import("tardy").Cross;
-
 const Dir = @import("tardy").Dir;
 const File = @import("tardy").File;
+const Frame = @import("tardy").Frame;
+const Runtime = @import("tardy").Runtime;
+const Task = @import("tardy").Task;
 
+const log = std.log.scoped(.@"tardy/example/cat");
 pub const std_options: std.Options = .{ .log_level = .err };
 
+const Tardy = @import("tardy").Tardy(.auto);
 const EntryParams = struct { file_name: [:0]const u8 };
 
 fn main_frame(rt: *Runtime, p: *EntryParams) !void {
-    const std_out = File.std_out();
     const file = Dir.cwd().open_file(rt, p.file_name, .{}) catch |e| switch (e) {
         error.NotFound => {
             std.debug.print("{s}: No such file!", .{p.file_name});
@@ -24,16 +22,19 @@ fn main_frame(rt: *Runtime, p: *EntryParams) !void {
         else => return e,
     };
 
-    const reader = file.reader(rt);
-    const writer = std_out.writer(rt);
+    var file_reader = file.reader(rt, &.{});
+    const file_r = &file_reader.interface;
+
+    var std_out = File.std_out().writer(rt, &.{});
+    const stdout_w = &std_out.interface;
+    defer stdout_w.flush() catch unreachable;
 
     var buffer: [1024 * 32]u8 = undefined;
     var done: bool = false;
-
     while (!done) {
-        const length = try reader.readAll(&buffer);
+        const length = file_r.readSliceShort(&buffer) catch unreachable;
         done = length < buffer.len;
-        try writer.writeAll(buffer[0..length]);
+        stdout_w.writeAll(buffer[0..length]) catch unreachable;
     }
 }
 

@@ -1,10 +1,9 @@
 const std = @import("std");
-const Timespec = @import("../lib.zig").Timespec;
 
 const File = @import("../fs/lib.zig").File;
 const Dir = @import("../fs/lib.zig").Dir;
 const Stat = @import("../fs/lib.zig").Stat;
-
+const Timespec = @import("../lib.zig").Timespec;
 const Socket = @import("../net/lib.zig").Socket;
 
 pub fn Resulted(comptime T: type, comptime E: type) type {

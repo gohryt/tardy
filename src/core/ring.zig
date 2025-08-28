@@ -1,5 +1,6 @@
 const std = @import("std");
 const assert = std.debug.assert;
+const testing = std.testing;
 
 pub fn Ring(comptime T: type) type {
     return struct {
@@ -74,8 +75,6 @@ pub fn Ring(comptime T: type) type {
         }
     };
 }
-
-const testing = std.testing;
 
 test "Ring Send and Recv" {
     const size: u32 = 100;

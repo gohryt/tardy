@@ -1,9 +1,10 @@
 const std = @import("std");
-const builtin = @import("builtin");
 const assert = std.debug.assert;
+const builtin = @import("builtin");
+
+const AsyncKind = @import("src/aio/lib.zig").AsyncKind;
 
 const zig_version = std.SemanticVersion{ .major = 0, .minor = 15, .patch = 1 };
-
 comptime {
     // Compare versions while allowing different pre/patch metadata.
     const zig_version_eq = zig_version.major == builtin.zig_version.major and
@@ -48,8 +49,6 @@ const Example = enum {
         return ex_string;
     }
 };
-const AsyncKind = @import("src/aio/lib.zig").AsyncKind;
-
 pub fn build(b: *std.Build) void {
 
     // Top-level steps you can invoke on the command line.
@@ -113,7 +112,7 @@ pub fn build(b: *std.Build) void {
     });
 
     // build and run e2e test
-    // usage: zig build test_e2e --Dasync=[async_backend] -- [u64 num]
+    // usage: zig build test_e2e -Dasync=[async_backend] -- [u64 num]
     build_test_e2e(b, .{
         .test_e2e = build_steps.test_e2e,
     }, .{

@@ -1,7 +1,8 @@
 const std = @import("std");
-const builtin = @import("builtin");
-const log = std.log.scoped(.@"tardy/frame");
 const assert = std.debug.assert;
+const builtin = @import("builtin");
+
+const log = std.log.scoped(.@"tardy/frame");
 
 const Hardware = switch (builtin.cpu.arch) {
     .x86_64 => switch (builtin.os.tag) {

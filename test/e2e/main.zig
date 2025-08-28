@@ -1,13 +1,18 @@
 const std = @import("std");
 const assert = std.debug.assert;
-const log = @import("lib.zig").log;
 
+const AsyncType = @import("tardy").AsyncType;
+const Dir = @import("tardy").Dir;
+const options = @import("options");
 const Runtime = @import("tardy").Runtime;
 const Task = @import("tardy").Task;
 const Timer = @import("tardy").Timer;
 
-const options = @import("options");
-const AsyncType = @import("tardy").AsyncType;
+const First = @import("first.zig");
+const log = @import("lib.zig").log;
+const Second = @import("second.zig");
+const SharedParams = @import("lib.zig").SharedParams;
+
 const backend: AsyncType = switch (options.async_option) {
     .auto => .auto,
     .kqueue => .kqueue,
@@ -18,17 +23,10 @@ const backend: AsyncType = switch (options.async_option) {
 };
 const Tardy = @import("tardy").Tardy(backend);
 
-const Dir = @import("tardy").Dir;
-
-const SharedParams = @import("lib.zig").SharedParams;
-
-const First = @import("first.zig");
-const Second = @import("second.zig");
-
 pub const std_options: std.Options = .{ .log_level = .debug };
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa: std.heap.DebugAllocator(.{}) = .init;
     const allocator = gpa.allocator();
     defer _ = gpa.deinit();
 
@@ -40,7 +38,7 @@ pub fn main() !void {
     // max u64 is 21 characters long :p
     var maybe_seed_buffer: [21]u8 = undefined;
     const seed_string = args.next() orelse blk: {
-        const stdin = std.fs.File.stdin();
+        const stdin: std.fs.File = .stdin();
         const bytes = try stdin.readToEndAlloc(allocator, std.math.maxInt(usize));
         defer allocator.free(bytes);
 
@@ -59,7 +57,7 @@ pub fn main() !void {
     };
 
     const seed = std.fmt.parseUnsigned(u64, seed_string, 10) catch @panic("seed passed in is not u64");
-    var prng = std.Random.DefaultPrng.init(seed);
+    var prng: std.Random.DefaultPrng = .init(seed);
     const rand = prng.random();
 
     const shared: SharedParams = blk: {
@@ -73,7 +71,7 @@ pub fn main() !void {
     };
     log.debug("{f}", .{std.json.fmt(shared, .{ .whitespace = .indent_1 })});
 
-    var tardy = try Tardy.init(allocator, .{
+    var tardy: Tardy = try .init(allocator, .{
         .threading = .{ .multi = 2 },
         .pooling = .grow,
         .size_tasks_initial = shared.size_tasks_initial,

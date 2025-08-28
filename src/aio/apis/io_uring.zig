@@ -1,32 +1,18 @@
 const std = @import("std");
 const assert = std.debug.assert;
+const LinuxError = std.os.linux.E;
 const builtin = @import("builtin");
-const log = std.log.scoped(.@"tardy/aio/io_uring");
 
+const Pool = @import("../../core/pool.zig").Pool;
+const Cross = @import("../../cross/lib.zig");
+const Stat = @import("../../fs/lib.zig").Stat;
+const Path = @import("../../fs/lib.zig").Path;
+const Timespec = @import("../../lib.zig").Timespec;
+const Socket = @import("../../net/lib.zig").Socket;
 const Completion = @import("../completion.zig").Completion;
 const Result = @import("../completion.zig").Result;
-const Stat = @import("../../fs/lib.zig").Stat;
-
-const Timespec = @import("../../lib.zig").Timespec;
-const Path = @import("../../fs/lib.zig").Path;
-
-const Async = @import("../lib.zig").Async;
-const AsyncOptions = @import("../lib.zig").AsyncOptions;
-
-const Cross = @import("../../cross/lib.zig");
-const Job = @import("../job.zig").Job;
-const Pool = @import("../../core/pool.zig").Pool;
-const Socket = @import("../../net/lib.zig").Socket;
-
-const AsyncFeatures = @import("../lib.zig").AsyncFeatures;
-const AsyncSubmission = @import("../lib.zig").AsyncSubmission;
-
-const LinuxError = std.os.linux.E;
-
-const AsyncOpenFlags = @import("../lib.zig").AsyncOpenFlags;
 const InnerOpenResult = @import("../completion.zig").InnerOpenResult;
 const OpenError = @import("../completion.zig").OpenError;
-
 const AcceptResult = @import("../completion.zig").AcceptResult;
 const AcceptError = @import("../completion.zig").AcceptError;
 const ConnectResult = @import("../completion.zig").ConnectResult;
@@ -35,7 +21,6 @@ const RecvResult = @import("../completion.zig").RecvResult;
 const RecvError = @import("../completion.zig").RecvError;
 const SendResult = @import("../completion.zig").SendResult;
 const SendError = @import("../completion.zig").SendError;
-
 const MkdirResult = @import("../completion.zig").MkdirResult;
 const MkdirError = @import("../completion.zig").MkdirError;
 const DeleteResult = @import("../completion.zig").DeleteResult;
@@ -46,6 +31,14 @@ const WriteResult = @import("../completion.zig").WriteResult;
 const WriteError = @import("../completion.zig").WriteError;
 const StatResult = @import("../completion.zig").StatResult;
 const StatError = @import("../completion.zig").StatError;
+const Job = @import("../job.zig").Job;
+const Async = @import("../lib.zig").Async;
+const AsyncOptions = @import("../lib.zig").AsyncOptions;
+const AsyncFeatures = @import("../lib.zig").AsyncFeatures;
+const AsyncSubmission = @import("../lib.zig").AsyncSubmission;
+const AsyncOpenFlags = @import("../lib.zig").AsyncOpenFlags;
+
+const log = std.log.scoped(.@"tardy/aio/io_uring");
 
 const JobBundle = struct {
     job: Job,
@@ -544,9 +537,9 @@ pub const AsyncIoUring = struct {
 
             const result: Result = blk: {
                 if (cqe.res < 0) {
-                    log.debug("{d} - other status on SQE: {s}", .{
+                    log.debug("{d} - other status on SQE: {t}", .{
                         job.index,
-                        @tagName(@as(LinuxError, @enumFromInt(-cqe.res))),
+                        @as(LinuxError, @enumFromInt(-cqe.res)),
                     });
                 }
                 switch (job.type) {

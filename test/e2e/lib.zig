@@ -1,7 +1,7 @@
 const std = @import("std");
-pub const log = std.log.scoped(.@"tardy/e2e");
-
 const Atomic = std.atomic.Value;
+
+pub const log = std.log.scoped(.@"tardy/e2e");
 
 pub const SharedParams = struct {
     // Seed Info

@@ -1,26 +1,23 @@
 const std = @import("std");
-const log = std.log.scoped(.@"tardy/example/echo");
-
-const Pool = @import("tardy").Pool;
-const Runtime = @import("tardy").Runtime;
-const Task = @import("tardy").Task;
-const Tardy = @import("tardy").Tardy(.auto);
-const Cross = @import("tardy").Cross;
-
-const Socket = @import("tardy").Socket;
-const File = @import("tardy").File;
-const Dir = @import("tardy").Dir;
-const Timer = @import("tardy").Timer;
-const Stream = @import("tardy").Stream;
 
 const AcceptResult = @import("tardy").AcceptResult;
+const Cross = @import("tardy").Cross;
+const Dir = @import("tardy").Dir;
+const File = @import("tardy").File;
+const Pool = @import("tardy").Pool;
 const RecvResult = @import("tardy").RecvResult;
+const Runtime = @import("tardy").Runtime;
 const SendResult = @import("tardy").SendResult;
+const Socket = @import("tardy").Socket;
+const Task = @import("tardy").Task;
+const Timer = @import("tardy").Timer;
 
+const Tardy = @import("tardy").Tardy(.auto);
 const EntryParams = struct {
     file_name: [:0]const u8,
     server_socket: *const Socket,
 };
+const log = std.log.scoped(.@"tardy/example/echo");
 
 fn stream_frame(rt: *Runtime, server: *const Socket, file_name: [:0]const u8) !void {
     defer rt.spawn(.{ rt, server, file_name }, stream_frame, 1024 * 1024 * 4) catch unreachable;
@@ -37,7 +34,14 @@ fn stream_frame(rt: *Runtime, server: *const Socket, file_name: [:0]const u8) !v
     );
 
     var buffer: [1024]u8 = undefined;
-    try Stream.copy(rt, file.stream(), socket.stream(), &buffer);
+    var socket_w = socket.writer(rt, &buffer);
+    const socket_sw = &socket_w.interface;
+    defer socket_sw.flush() catch unreachable;
+
+    file.stream_to(
+        socket_sw,
+        rt,
+    ) catch unreachable;
 }
 
 pub fn main() !void {

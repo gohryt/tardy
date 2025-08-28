@@ -1,14 +1,14 @@
 const std = @import("std");
-const log = std.log.scoped(.@"tardy/example/stat");
-
-const Runtime = @import("tardy").Runtime;
-const Task = @import("tardy").Task;
-const Tardy = @import("tardy").Tardy(.auto);
 
 const Dir = @import("tardy").Dir;
 const File = @import("tardy").File;
+const Runtime = @import("tardy").Runtime;
 const Stat = @import("tardy").Stat;
 const StatResult = @import("tardy").StatResult;
+const Task = @import("tardy").Task;
+
+const Tardy = @import("tardy").Tardy(.auto);
+const log = std.log.scoped(.@"tardy/example/stat");
 
 fn main_frame(rt: *Runtime, name: [:0]const u8) !void {
     const file = try Dir.cwd().open_file(rt, name, .{});

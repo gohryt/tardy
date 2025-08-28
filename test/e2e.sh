@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# TODO: implement e2e test in Zig
+# TODO: implement this test in Zig
 
 set -e
 count=$1

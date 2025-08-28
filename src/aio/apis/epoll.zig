@@ -1,27 +1,16 @@
 const std = @import("std");
 const assert = std.debug.assert;
-const log = std.log.scoped(.@"tardy/aio/epoll");
-
-const Completion = @import("../completion.zig").Completion;
-const Result = @import("../completion.zig").Result;
-const Stat = @import("../../fs/lib.zig").Stat;
-const Timespec = @import("../../lib.zig").Timespec;
-
-const Async = @import("../lib.zig").Async;
-const AsyncOptions = @import("../lib.zig").AsyncOptions;
-const Job = @import("../job.zig").Job;
-const Pool = @import("../../core/pool.zig").Pool;
-const Queue = @import("../../core/queue.zig").Queue;
-
-const Path = @import("../../fs/lib.zig").Path;
-const Socket = @import("../../net/lib.zig").Socket;
-
-const Cross = @import("../../cross/lib.zig");
-const AsyncFeatures = @import("../lib.zig").AsyncFeatures;
-const AsyncSubmission = @import("../lib.zig").AsyncSubmission;
-
 const LinuxError = std.os.linux.E;
 
+const Pool = @import("../../core/pool.zig").Pool;
+const Queue = @import("../../core/queue.zig").Queue;
+const Cross = @import("../../cross/lib.zig");
+const Stat = @import("../../fs/lib.zig").Stat;
+const Path = @import("../../fs/lib.zig").Path;
+const Timespec = @import("../../lib.zig").Timespec;
+const Socket = @import("../../net/lib.zig").Socket;
+const Completion = @import("../completion.zig").Completion;
+const Result = @import("../completion.zig").Result;
 const AcceptResult = @import("../completion.zig").AcceptResult;
 const AcceptError = @import("../completion.zig").AcceptError;
 const ConnectResult = @import("../completion.zig").ConnectResult;
@@ -30,6 +19,13 @@ const RecvResult = @import("../completion.zig").RecvResult;
 const RecvError = @import("../completion.zig").RecvError;
 const SendResult = @import("../completion.zig").SendResult;
 const SendError = @import("../completion.zig").SendError;
+const Job = @import("../job.zig").Job;
+const Async = @import("../lib.zig").Async;
+const AsyncOptions = @import("../lib.zig").AsyncOptions;
+const AsyncFeatures = @import("../lib.zig").AsyncFeatures;
+const AsyncSubmission = @import("../lib.zig").AsyncSubmission;
+
+const log = std.log.scoped(.@"tardy/aio/epoll");
 
 pub const AsyncEpoll = struct {
     epoll_fd: std.posix.fd_t,

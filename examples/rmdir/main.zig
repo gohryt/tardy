@@ -1,11 +1,12 @@
 const std = @import("std");
-const log = std.log.scoped(.@"tardy/example/rmdir");
 
-const Runtime = @import("tardy").Runtime;
-const Task = @import("tardy").Task;
-const Tardy = @import("tardy").Tardy(.auto);
 const Cross = @import("tardy").Cross;
 const Dir = @import("tardy").Dir;
+const Runtime = @import("tardy").Runtime;
+const Task = @import("tardy").Task;
+
+const Tardy = @import("tardy").Tardy(.auto);
+const log = std.log.scoped(.@"tardy/example/rmdir");
 
 fn main_frame(rt: *Runtime, name: [:0]const u8) !void {
     try Dir.cwd().delete_tree(rt, name);

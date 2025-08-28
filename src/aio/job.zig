@@ -1,7 +1,7 @@
 const std = @import("std");
 
-const Timespec = @import("../lib.zig").Timespec;
 const Path = @import("../fs/lib.zig").Path;
+const Timespec = @import("../lib.zig").Timespec;
 const Socket = @import("../net/lib.zig").Socket;
 const AsyncOpenFlags = @import("lib.zig").AsyncOpenFlags;
 

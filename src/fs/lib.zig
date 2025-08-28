@@ -1,7 +1,8 @@
 const std = @import("std");
 
-pub const File = @import("file.zig").File;
+const Timespec = @import("../lib.zig").Timespec;
 pub const Dir = @import("dir.zig").Dir;
+pub const File = @import("file.zig").File;
 
 pub const Path = union(enum) {
     /// Relative to given Directory
@@ -24,7 +25,6 @@ pub const Path = union(enum) {
     }
 };
 
-const Timespec = @import("../lib.zig").Timespec;
 pub const Stat = struct {
     size: u64,
     mode: u64 = 0,

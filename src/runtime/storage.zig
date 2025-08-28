@@ -1,5 +1,6 @@
 const std = @import("std");
 const assert = std.debug.assert;
+const testing = std.testing;
 
 /// Storage is deleteless and clobberless.
 pub const Storage = struct {
@@ -61,8 +62,6 @@ pub const Storage = struct {
         return @ptrCast(@alignCast(got));
     }
 };
-
-const testing = std.testing;
 
 test "Storage Storing" {
     var storage = Storage.init(testing.allocator);

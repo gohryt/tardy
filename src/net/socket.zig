@@ -1,9 +1,6 @@
 const std = @import("std");
+const debug = std.debug;
 const builtin = @import("builtin");
-const assert = std.debug.assert;
-
-const Frame = @import("../frame/lib.zig").Frame;
-const Runtime = @import("../runtime/lib.zig").Runtime;
 
 const AcceptResult = @import("../aio/completion.zig").AcceptResult;
 const AcceptError = @import("../aio/completion.zig").AcceptError;
@@ -13,8 +10,8 @@ const RecvResult = @import("../aio/completion.zig").RecvResult;
 const RecvError = @import("../aio/completion.zig").RecvError;
 const SendResult = @import("../aio/completion.zig").SendResult;
 const SendError = @import("../aio/completion.zig").SendError;
-
-const Stream = @import("../stream.zig").Stream;
+const Frame = @import("../frame/lib.zig").Frame;
+const Runtime = @import("../runtime/lib.zig").Runtime;
 
 pub const Socket = struct {
     pub const Kind = enum {
@@ -110,7 +107,7 @@ pub const Socket = struct {
 
     /// Listen on the Current Socket.
     pub fn listen(self: Socket, backlog: usize) !void {
-        assert(self.kind.listenable());
+        debug.assert(self.kind.listenable());
         try std.posix.listen(self.handle, @truncate(backlog));
     }
 
@@ -128,7 +125,7 @@ pub const Socket = struct {
     }
 
     pub fn accept(self: Socket, rt: *Runtime) !Socket {
-        assert(self.kind.listenable());
+        debug.assert(self.kind.listenable());
         if (rt.aio.features.has_capability(.accept)) {
             try rt.scheduler.io_await(.{
                 .accept = .{
@@ -292,45 +289,141 @@ pub const Socket = struct {
         return length;
     }
 
-    const ReadWriteContext = struct { socket: Socket, rt: *Runtime };
+    pub const Writer = struct {
+        socket: Socket,
+        err: ?anyerror = null,
+        pos: u64 = 0,
+        rt: *Runtime,
+        interface: std.Io.Writer,
 
-    const Writer = std.io.GenericWriter(ReadWriteContext, anyerror, struct {
-        fn write(ctx: ReadWriteContext, bytes: []const u8) !usize {
-            return try ctx.socket.send(ctx.rt, bytes);
+        pub fn init(socket: Socket, rt: *Runtime, buffer: []u8) Writer {
+            return .{
+                .socket = socket,
+                .rt = rt,
+                .interface = initInterface(buffer),
+            };
         }
-    }.write);
 
-    const Reader = std.io.GenericReader(ReadWriteContext, anyerror, struct {
-        fn read(ctx: ReadWriteContext, buffer: []u8) !usize {
-            return try ctx.socket.recv(ctx.rt, buffer);
+        pub fn initInterface(buffer: []u8) std.Io.Writer {
+            return .{
+                .vtable = &.{
+                    .drain = drain,
+                    .sendFile = sendFile,
+                },
+                .buffer = buffer,
+            };
         }
-    }.read);
 
-    pub fn writer(self: Socket, rt: *Runtime) Writer {
-        return Writer{ .context = .{ .socket = self, .rt = rt } };
+        pub fn drain(io_w: *std.Io.Writer, data: []const []const u8, splat: usize) std.Io.Writer.Error!usize {
+            const w: *Writer = @alignCast(@fieldParentPtr("interface", io_w));
+            const buffered = io_w.buffered();
+
+            if (buffered.len != 0) {
+                const n = w.socket.send(w.rt, buffered) catch |err| {
+                    w.err = err;
+                    return error.WriteFailed;
+                };
+                w.pos += n;
+                return io_w.consume(n);
+            }
+            for (data[0 .. data.len - 1]) |buf| {
+                if (buf.len == 0) continue;
+                const n = w.socket.send(w.rt, buf) catch |err| {
+                    w.err = err;
+                    return error.WriteFailed;
+                };
+                w.pos += n;
+                return io_w.consume(n);
+            }
+            const pattern = data[data.len - 1];
+            if (pattern.len == 0 or splat == 0) return 0;
+            const n = w.socket.send(w.rt, pattern) catch |err| {
+                w.err = err;
+                return error.WriteFailed;
+            };
+            w.pos += n;
+            return io_w.consume(n);
+        }
+
+        pub fn sendFile(
+            io_w: *std.Io.Writer,
+            file_reader: *std.fs.File.Reader,
+            limit: std.Io.Limit,
+        ) std.Io.Writer.FileError!usize {
+            _ = io_w; // autofix
+            _ = file_reader; // autofix
+            _ = limit; // autofix
+            return error.Unimplemented;
+        }
+    };
+
+    pub const Reader = struct {
+        socket: Socket,
+        err: ?anyerror = null,
+        pos: u64 = 0,
+        rt: *Runtime,
+        interface: std.Io.Reader,
+
+        pub fn init(socket: Socket, rt: *Runtime, buffer: []u8) Reader {
+            return .{
+                .socket = socket,
+                .rt = rt,
+                .interface = initInterface(buffer),
+            };
+        }
+
+        pub fn initInterface(buffer: []u8) std.Io.Reader {
+            return .{
+                .vtable = &.{
+                    .stream = Reader.stream,
+                },
+                .buffer = buffer,
+                .seek = 0,
+                .end = 0,
+            };
+        }
+
+        fn stream(io_reader: *std.Io.Reader, w: *std.Io.Writer, limit: std.Io.Limit) std.Io.Reader.StreamError!usize {
+            const r: *Reader = @alignCast(@fieldParentPtr("interface", io_reader));
+            const w_dest = limit.slice(try w.writableSliceGreedy(1));
+
+            const n = r.socket.recv(r.rt, w_dest) catch |err| switch (err) {
+                error.Closed => {
+                    return error.EndOfStream;
+                },
+                else => {
+                    r.err = err;
+                    return error.ReadFailed;
+                },
+            };
+            r.pos += n;
+            w.advance(n);
+            return n;
+        }
+    };
+
+    pub fn writer(sock: Socket, rt: *Runtime, buffer: []u8) Writer {
+        return .init(sock, rt, buffer);
     }
 
-    pub fn reader(self: Socket, rt: *Runtime) Reader {
-        return Reader{ .context = .{ .socket = self, .rt = rt } };
+    pub fn reader(sock: Socket, rt: *Runtime, buffer: []u8) Reader {
+        return .init(sock, rt, buffer);
     }
 
-    pub fn stream(self: *const Socket) Stream {
-        return Stream{
-            .inner = @constCast(@ptrCast(self)),
-            .vtable = .{
-                .read = struct {
-                    fn read(inner: *anyopaque, rt: *Runtime, buffer: []u8) !usize {
-                        const socket: *Socket = @ptrCast(@alignCast(inner));
-                        return try socket.recv(rt, buffer);
-                    }
-                }.read,
-                .write = struct {
-                    fn write(inner: *anyopaque, rt: *Runtime, buffer: []const u8) !usize {
-                        const socket: *Socket = @ptrCast(@alignCast(inner));
-                        return try socket.send(rt, buffer);
-                    }
-                }.write,
-            },
-        };
+    // TODO: sendFile like api is a more appropriate for this
+    pub fn stream_to(from: Socket, to_w: *std.Io.Writer, rt: *Runtime) !void {
+        debug.assert(to_w.buffer.len > 0);
+
+        var file = from.reader(rt, &.{});
+        const file_r = &file.interface;
+        while (true) {
+            _ = Reader.stream(file_r, to_w, .limited(to_w.buffer.len)) catch |e| switch (e) {
+                error.EndOfStream => break,
+                else => {
+                    return e;
+                },
+            };
+            _ = to_w.vtable.drain(to_w, &.{}, 0) catch break;
+        }
     }
 };
