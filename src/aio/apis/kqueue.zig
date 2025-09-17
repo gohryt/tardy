@@ -1,22 +1,13 @@
 const std = @import("std");
 const assert = std.debug.assert;
-const log = std.log.scoped(.@"tardy/aio/kqueue");
+const PosixError = std.posix.E;
+const Atomic = std.atomic.Value;
 
+const Pool = @import("../../core/pool.zig").Pool;
+const Timespec = @import("../../lib.zig").Timespec;
+const Socket = @import("../../net/lib.zig").Socket;
 const Completion = @import("../completion.zig").Completion;
 const Result = @import("../completion.zig").Result;
-const Timespec = @import("../../lib.zig").Timespec;
-
-const Async = @import("../lib.zig").Async;
-const AsyncOptions = @import("../lib.zig").AsyncOptions;
-const Job = @import("../job.zig").Job;
-const Pool = @import("../../core/pool.zig").Pool;
-
-const Socket = @import("../../net/lib.zig").Socket;
-const AsyncFeatures = @import("../lib.zig").AsyncFeatures;
-const AsyncSubmission = @import("../lib.zig").AsyncSubmission;
-
-const PosixError = std.posix.E;
-
 const AcceptResult = @import("../completion.zig").AcceptResult;
 const AcceptError = @import("../completion.zig").AcceptError;
 const ConnectResult = @import("../completion.zig").ConnectResult;
@@ -25,8 +16,13 @@ const RecvResult = @import("../completion.zig").RecvResult;
 const RecvError = @import("../completion.zig").RecvError;
 const SendResult = @import("../completion.zig").SendResult;
 const SendError = @import("../completion.zig").SendError;
+const Job = @import("../job.zig").Job;
+const Async = @import("../lib.zig").Async;
+const AsyncOptions = @import("../lib.zig").AsyncOptions;
+const AsyncFeatures = @import("../lib.zig").AsyncFeatures;
+const AsyncSubmission = @import("../lib.zig").AsyncSubmission;
 
-const Atomic = std.atomic.Value;
+const log = std.log.scoped(.@"tardy/aio/kqueue");
 
 const WAKE_IDENT = 1;
 

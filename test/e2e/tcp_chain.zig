@@ -1,16 +1,15 @@
 const std = @import("std");
-const log = std.log.scoped(.@"tardy/e2e/tcp_chain");
 const assert = std.debug.assert;
+const testing = std.testing;
 
-const Runtime = @import("tardy").Runtime;
-
-const Socket = @import("tardy").Socket;
-
+const DeleteResult = @import("tardy").DeleteResult;
 const OpenFileResult = @import("tardy").OpenFileResult;
 const ReadResult = @import("tardy").ReadResult;
+const Runtime = @import("tardy").Runtime;
+const Socket = @import("tardy").Socket;
 const WriteResult = @import("tardy").WriteResult;
-const DeleteResult = @import("tardy").DeleteResult;
 
+const log = std.log.scoped(.@"tardy/e2e/tcp_chain");
 pub const TcpServerChain = struct {
     const Step = enum {
         accept,
@@ -47,10 +46,10 @@ pub const TcpServerChain = struct {
     }
 
     pub fn generate_random_chain(allocator: std.mem.Allocator, seed: u64) ![]Step {
-        var prng = std.Random.DefaultPrng.init(seed);
+        var prng: std.Random.DefaultPrng = .init(seed);
         const rand = prng.random();
 
-        var list = try std.ArrayListUnmanaged(Step).initCapacity(allocator, 0);
+        var list: std.ArrayList(Step) = try .initCapacity(allocator, 0);
         defer list.deinit(allocator);
         try list.append(allocator, .accept);
 
@@ -119,7 +118,7 @@ pub const TcpServerChain = struct {
 
         chain: while (chain.index < chain.steps.len) : (chain.index += 1) {
             const current_step = chain.steps[chain.index];
-            log.debug("server chain step: {s}", .{@tagName(current_step)});
+            log.debug("server chain step: {t}", .{current_step});
             switch (current_step) {
                 .accept => {
                     const socket = try server_socket.accept(rt);
@@ -172,11 +171,11 @@ pub const TcpClientChain = struct {
         defer chain.deinit();
         errdefer unreachable;
 
-        var socket: Socket = try Socket.init(.{ .tcp = .{ .host = "127.0.0.1", .port = port } });
+        var socket: Socket = try .init(.{ .tcp = .{ .host = "127.0.0.1", .port = port } });
 
         chain: while (chain.index < chain.steps.len) : (chain.index += 1) {
             const current_step = chain.steps[chain.index];
-            log.debug("client chain step: {s}", .{@tagName(current_step)});
+            log.debug("client chain step: {t}", .{current_step});
             switch (current_step) {
                 .connect => try socket.connect(rt),
                 .recv => {
@@ -205,8 +204,6 @@ pub const TcpClientChain = struct {
     }
 };
 
-const testing = std.testing;
-
 test "TcpServerChain: Proper Chain" {
     const chain: []const TcpServerChain.Step = &.{
         .accept,
@@ -229,7 +226,7 @@ test "TcpServerChain: Validate Random Chain" {
     errdefer {
         std.debug.print("failed seed: {d}\n", .{seed});
         for (chain) |item| {
-            std.debug.print("action={s}\n", .{@tagName(item)});
+            std.debug.print("action={t}\n", .{item});
         }
     }
 

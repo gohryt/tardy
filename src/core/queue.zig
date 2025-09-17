@@ -5,32 +5,30 @@ pub fn Queue(comptime T: type) type {
     const Node = List.Node;
 
     return struct {
-        const Self = @This();
-
         allocator: std.mem.Allocator,
         items: List,
 
-        pub fn init(allocator: std.mem.Allocator) Self {
+        pub fn init(allocator: std.mem.Allocator) Queue {
             return .{ .allocator = allocator, .items = List{} };
         }
 
-        pub fn deinit(self: *Self) void {
+        pub fn deinit(self: *Queue) void {
             while (self.items.pop()) |node| self.allocator.destroy(node);
         }
 
-        pub fn append(self: *Self, item: T) !void {
+        pub fn append(self: *Queue, item: T) !void {
             const node = try self.allocator.create(Node);
             node.* = .{ .data = item };
             self.items.append(node);
         }
 
-        pub fn pop(self: *Self) ?T {
+        pub fn pop(self: *Queue) ?T {
             const node = self.items.popFirst() orelse return null;
             defer self.allocator.destroy(node);
             return node.data;
         }
 
-        pub fn pop_assert(self: *Self) T {
+        pub fn pop_assert(self: *Queue) T {
             const node = self.items.popFirst().?;
             defer self.allocator.destroy(node);
             return node.data;

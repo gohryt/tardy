@@ -1,37 +1,30 @@
 const std = @import("std");
 const assert = std.debug.assert;
-const log = std.log.scoped(.@"tardy/fs/dir");
+const StdDir = std.fs.Dir;
 const builtin = @import("builtin");
-
-const Runtime = @import("../runtime/lib.zig").Runtime;
-const Path = @import("lib.zig").Path;
-const File = @import("lib.zig").File;
-const Stat = @import("lib.zig").Stat;
-
-const FileMode = @import("../aio/lib.zig").FileMode;
-const AsyncOpenFlags = @import("../aio/lib.zig").AsyncOpenFlags;
 
 const Resulted = @import("../aio/completion.zig").Resulted;
 const OpenFileResult = @import("../aio/completion.zig").OpenFileResult;
 const OpenDirResult = @import("../aio/completion.zig").OpenDirResult;
 const OpenError = @import("../aio/completion.zig").OpenError;
-
 const DeleteError = @import("../aio/completion.zig").DeleteError;
 const DeleteResult = @import("../aio/completion.zig").DeleteResult;
 const DeleteTreeResult = @import("../aio/completion.zig").DeleteTreeResult;
-
 const StatResult = @import("../aio/completion.zig").StatResult;
 const ReadResult = @import("../aio/completion.zig").ReadResult;
 const WriteResult = @import("../aio/completion.zig").WriteResult;
-
 const CreateDirResult = @import("../aio/completion.zig").CreateDirResult;
 const MkdirResult = @import("../aio/completion.zig").MkdirResult;
 const MkdirError = @import("../aio/completion.zig").MkdirError;
-
 const StatError = @import("../aio/completion.zig").StatError;
+const FileMode = @import("../aio/lib.zig").FileMode;
+const AsyncOpenFlags = @import("../aio/lib.zig").AsyncOpenFlags;
+const Runtime = @import("../runtime/lib.zig").Runtime;
+const File = @import("lib.zig").File;
+const Path = @import("lib.zig").Path;
+const Stat = @import("lib.zig").Stat;
 
-const StdDir = std.fs.Dir;
-
+const log = std.log.scoped(.@"tardy/fs/dir");
 pub const Dir = packed struct {
     handle: std.posix.fd_t,
 

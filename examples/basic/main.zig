@@ -1,12 +1,11 @@
 const std = @import("std");
-const log = std.log.scoped(.@"tardy/example/basic");
 
 const Runtime = @import("tardy").Runtime;
 const Task = @import("tardy").Task;
-
 const Timer = @import("tardy").Timer;
 
 const Tardy = @import("tardy").Tardy(.auto);
+const log = std.log.scoped(.@"tardy/example/basic");
 
 fn log_frame(rt: *Runtime) !void {
     var count: usize = 0;
@@ -20,7 +19,7 @@ fn log_frame(rt: *Runtime) !void {
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
 
-    var tardy = try Tardy.init(allocator, .{
+    var tardy: Tardy = try .init(allocator, .{
         .threading = .single,
         .pooling = .static,
         .size_tasks_initial = 2,

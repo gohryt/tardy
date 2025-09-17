@@ -1,12 +1,12 @@
 const std = @import("std");
-const log = std.log.scoped(.@"tardy/channels/spsc");
+const Atomic = std.atomic.Value;
 
-const Frame = @import("../frame/lib.zig").Frame;
-const Ring = @import("../core/ring.zig").Ring;
 const SpscAtomicRing = @import("../core/atomic_ring.zig").SpscAtomicRing;
+const Ring = @import("../core/ring.zig").Ring;
+const Frame = @import("../frame/lib.zig").Frame;
 const Runtime = @import("../lib.zig").Runtime;
 
-const Atomic = std.atomic.Value;
+const log = std.log.scoped(.@"tardy/channels/spsc");
 
 const State = enum(u8) {
     starting,

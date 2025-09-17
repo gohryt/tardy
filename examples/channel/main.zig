@@ -1,13 +1,13 @@
 const std = @import("std");
-const log = std.log.scoped(.@"tardy/example/channel");
 
 const Runtime = @import("tardy").Runtime;
+const Spsc = @import("tardy").Spsc;
 const Task = @import("tardy").Task;
 const Timer = @import("tardy").Timer;
+
 const Tardy = @import("tardy").Tardy(.auto);
 
-const Spsc = @import("tardy").Spsc;
-
+const log = std.log.scoped(.@"tardy/example/channel");
 pub const std_options: std.Options = .{ .log_level = .err };
 
 const MAX_COUNT = 100;
@@ -39,9 +39,9 @@ fn consumer_frame(_: *Runtime, consumer: Spsc(usize).Consumer) !void {
 }
 
 pub fn main() !void {
-    const allocator = std.heap.page_allocator;
+    const allocator = std.heap.smp_allocator;
 
-    var tardy = try Tardy.init(allocator, .{
+    var tardy: Tardy = try .init(allocator, .{
         .threading = .{ .multi = 2 },
         .pooling = .static,
         .size_tasks_initial = 1,
@@ -49,7 +49,7 @@ pub fn main() !void {
     });
     defer tardy.deinit();
 
-    var channel = try Spsc(usize).init(allocator, 2);
+    var channel: Spsc(usize) = try .init(allocator, 2);
     defer channel.deinit();
 
     try tardy.entry(

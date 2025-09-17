@@ -1,15 +1,8 @@
 const std = @import("std");
-const builtin = @import("builtin");
 const assert = std.debug.assert;
-const log = std.log.scoped(.@"tardy/fs/file");
-
-const Frame = @import("../frame/lib.zig").Frame;
-const Runtime = @import("../runtime/lib.zig").Runtime;
-const Path = @import("lib.zig").Path;
-const Stat = @import("lib.zig").Stat;
-
-const FileMode = @import("../aio/lib.zig").FileMode;
-const AsyncOpenFlags = @import("../aio/lib.zig").AsyncOpenFlags;
+const StdFile = std.fs.File;
+const StdDir = std.fs.Dir;
+const builtin = @import("builtin");
 
 const Resulted = @import("../aio/completion.zig").Resulted;
 const OpenFileResult = @import("../aio/completion.zig").OpenFileResult;
@@ -20,15 +13,140 @@ const ReadResult = @import("../aio/completion.zig").ReadResult;
 const ReadError = @import("../aio/completion.zig").ReadError;
 const WriteResult = @import("../aio/completion.zig").WriteResult;
 const WriteError = @import("../aio/completion.zig").WriteError;
-
+const FileMode = @import("../aio/lib.zig").FileMode;
+const AsyncOpenFlags = @import("../aio/lib.zig").AsyncOpenFlags;
 const Cross = @import("../cross/lib.zig");
-const Stream = @import("../stream.zig").Stream;
+const Frame = @import("../frame/lib.zig").Frame;
+const Runtime = @import("../runtime/lib.zig").Runtime;
+const Path = @import("lib.zig").Path;
+const Stat = @import("lib.zig").Stat;
 
-const StdFile = std.fs.File;
-const StdDir = std.fs.Dir;
+const log = std.log.scoped(.@"tardy/fs/file");
+
+pub const Writer = struct {
+    file: File,
+    err: ?anyerror = null,
+    pos: u64 = 0,
+    rt: *Runtime,
+    interface: std.Io.Writer,
+
+    pub fn init(file: File, rt: *Runtime, buffer: []u8) Writer {
+        return .{
+            .file = file,
+            .rt = rt,
+            .interface = initInterface(buffer),
+        };
+    }
+
+    pub fn initInterface(buffer: []u8) std.Io.Writer {
+        return .{
+            .vtable = &.{
+                .drain = drain,
+                .sendFile = sendFile,
+            },
+            .buffer = buffer,
+        };
+    }
+
+    pub fn drain(io_w: *std.Io.Writer, data: []const []const u8, splat: usize) std.Io.Writer.Error!usize {
+        const w: *Writer = @alignCast(@fieldParentPtr("interface", io_w));
+        const buffered = io_w.buffered();
+        if (buffered.len != 0) {
+            const n = w.file.write(w.rt, buffered, w.pos) catch |err| {
+                w.err = err;
+                return error.WriteFailed;
+            };
+            w.pos += n;
+            return io_w.consume(n);
+        }
+        for (data[0 .. data.len - 1]) |buf| {
+            if (buf.len == 0) continue;
+            const n = w.file.write(w.rt, buf, w.pos) catch |err| {
+                w.err = err;
+                return error.WriteFailed;
+            };
+            w.pos += n;
+            return io_w.consume(n);
+        }
+        const pattern = data[data.len - 1];
+        if (pattern.len == 0 or splat == 0) return 0;
+        const n = w.file.write(w.rt, pattern, w.pos) catch |err| {
+            w.err = err;
+            return error.WriteFailed;
+        };
+        w.pos += n;
+        return io_w.consume(n);
+    }
+
+    pub fn sendFile(
+        io_w: *std.Io.Writer,
+        file_reader: *std.fs.File.Reader,
+        limit: std.Io.Limit,
+    ) std.Io.Writer.FileError!usize {
+        _ = io_w; // autofix
+        _ = file_reader; // autofix
+        _ = limit; // autofix
+        return error.Unimplemented;
+    }
+};
+
+pub const Reader = struct {
+    file: File,
+    err: ?anyerror = null,
+    size: ?u64 = null,
+    pos: u64 = 0,
+    rt: *Runtime,
+    interface: std.Io.Reader,
+
+    pub fn init(file: File, rt: *Runtime, buffer: []u8) Reader {
+        return .{
+            .file = file,
+            .rt = rt,
+            .interface = initInterface(buffer),
+        };
+    }
+
+    pub fn initInterface(buffer: []u8) std.Io.Reader {
+        return .{
+            .vtable = &.{
+                .stream = stream,
+            },
+            .buffer = buffer,
+            .seek = 0,
+            .end = 0,
+        };
+    }
+
+    pub fn stream(io_reader: *std.Io.Reader, w: *std.Io.Writer, limit: std.Io.Limit) std.Io.Reader.StreamError!usize {
+        const r: *Reader = @alignCast(@fieldParentPtr("interface", io_reader));
+        const w_dest = limit.slice(try w.writableSliceGreedy(1));
+
+        const n = r.file.read(r.rt, w_dest, r.pos) catch |err| switch (err) {
+            error.EndOfFile => {
+                r.size = r.pos;
+                return error.EndOfStream;
+            },
+            else => {
+                r.err = err;
+                return error.ReadFailed;
+            },
+        };
+        r.pos += n;
+        w.advance(n);
+        return n;
+    }
+};
 
 pub const File = packed struct {
     handle: std.posix.fd_t,
+
+    pub fn reader(file: File, rt: *Runtime, buffer: []u8) Reader {
+        return .init(file, rt, buffer);
+    }
+
+    pub fn writer(file: File, rt: *Runtime, buffer: []u8) Writer {
+        return .init(file, rt, buffer);
+    }
 
     pub const CreateFlags = struct {
         mode: FileMode = .write,
@@ -423,10 +541,11 @@ pub const File = packed struct {
                     StdFile.StatError.AccessDenied => StatError.AccessDenied,
                     StdFile.StatError.SystemResources => StatError.OutOfMemory,
                     StdFile.StatError.Unexpected => StatError.Unexpected,
+                    StdFile.StatError.PermissionDenied => StatError.PermissionDenied,
                 };
             };
 
-            return Stat{
+            return .{
                 .size = file_stat.size,
                 .mode = file_stat.mode,
                 .changed = .{
@@ -445,48 +564,20 @@ pub const File = packed struct {
         }
     }
 
-    const ReadWriteContext = struct { file: File, rt: *Runtime };
+    // TODO: sendFile like api is a more appropriate for this
+    pub fn stream_to(from: File, to_w: *std.Io.Writer, rt: *Runtime) !void {
+        std.debug.assert(to_w.buffer.len > 0);
 
-    const Writer = std.io.GenericWriter(ReadWriteContext, anyerror, struct {
-        fn write(ctx: ReadWriteContext, bytes: []const u8) !usize {
-            return try ctx.file.write(ctx.rt, bytes, null);
-        }
-    }.write);
-
-    const Reader = std.io.GenericReader(ReadWriteContext, anyerror, struct {
-        fn read(ctx: ReadWriteContext, buffer: []u8) !usize {
-            return ctx.file.read(ctx.rt, buffer, null) catch |e| switch (e) {
-                error.EndOfFile => 0,
-                else => return e,
+        var file = from.reader(rt, &.{});
+        const file_r = &file.interface;
+        while (true) {
+            _ = Reader.stream(file_r, to_w, .limited(to_w.buffer.len)) catch |e| switch (e) {
+                error.EndOfStream => break,
+                else => {
+                    return e;
+                },
             };
+            _ = to_w.vtable.drain(to_w, &.{}, 0) catch break;
         }
-    }.read);
-
-    pub fn writer(self: File, rt: *Runtime) Writer {
-        return Writer{ .context = .{ .file = self, .rt = rt } };
-    }
-
-    pub fn reader(self: File, rt: *Runtime) Reader {
-        return Reader{ .context = .{ .file = self, .rt = rt } };
-    }
-
-    pub fn stream(self: *const File) Stream {
-        return Stream{
-            .inner = @constCast(@ptrCast(self)),
-            .vtable = .{
-                .read = struct {
-                    fn read(inner: *anyopaque, rt: *Runtime, buffer: []u8) !usize {
-                        const file: *File = @ptrCast(@alignCast(inner));
-                        return try file.read(rt, buffer, null);
-                    }
-                }.read,
-                .write = struct {
-                    fn write(inner: *anyopaque, rt: *Runtime, buffer: []const u8) !usize {
-                        const file: *File = @ptrCast(@alignCast(inner));
-                        return try file.write(rt, buffer, null);
-                    }
-                }.write,
-            },
-        };
     }
 };

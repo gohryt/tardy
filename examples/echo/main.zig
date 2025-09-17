@@ -1,44 +1,53 @@
 const std = @import("std");
-const log = std.log.scoped(.@"tardy/example/echo");
-
-const Pool = @import("tardy").Pool;
-const Runtime = @import("tardy").Runtime;
-const Task = @import("tardy").Task;
-const Tardy = @import("tardy").Tardy(.auto);
-const Cross = @import("tardy").Cross;
-
-const Socket = @import("tardy").Socket;
-const Timer = @import("tardy").Timer;
 
 const AcceptResult = @import("tardy").AcceptResult;
+const Cross = @import("tardy").Cross;
+const Pool = @import("tardy").Pool;
 const RecvResult = @import("tardy").RecvResult;
+const Runtime = @import("tardy").Runtime;
 const SendResult = @import("tardy").SendResult;
+const Socket = @import("tardy").Socket;
+const Task = @import("tardy").Task;
+const Timer = @import("tardy").Timer;
+
+const Tardy = @import("tardy").Tardy(.auto);
+const log = std.log.scoped(.@"tardy/example/echo");
 
 fn echo_frame(rt: *Runtime, server: *const Socket) !void {
     const socket = try server.accept(rt);
     defer socket.close_blocking();
 
-    const reader = socket.reader(rt);
-    const writer = socket.writer(rt);
+    var sock_reader = socket.reader(rt, &.{});
+    const sock_r = &sock_reader.interface;
+
+    var sock_writer = socket.writer(rt, &.{});
+    const sock_w = &sock_writer.interface;
+    defer sock_w.flush() catch unreachable;
 
     log.debug(
-        "{d} - accepted socket [{}]",
+        "{d} - accepted socket [{f}]",
         .{ std.time.milliTimestamp(), socket.addr },
     );
 
     // spawn off a new frame.
     try rt.spawn(.{ rt, server }, echo_frame, 1024 * 16);
 
-    var buffer: [1024]u8 = undefined;
+    //TODO: investigate why using readSliceShort with a buffer bigger
+    // than reader size leads to a connection reset (try to get a repro)
+    var buffer: [501]u8 = undefined;
     while (true) {
-        const recv_length = reader.read(&buffer) catch |e| {
-            log.err("Failed to recv on socket | {}", .{e});
-            return;
+        const recv_length = sock_r.readSliceShort(&buffer) catch |e| {
+            log.err("Failed to recv on socket | {t}", .{e});
+            break;
         };
 
-        writer.writeAll(buffer[0..recv_length]) catch |e| {
-            log.err("Failed to send on socket | {}", .{e});
-            return;
+        if (recv_length == 0) {
+            break;
+        }
+
+        sock_w.writeAll(buffer[0..recv_length]) catch |e| {
+            log.err("Failed to send on socket | {t}", .{e});
+            break;
         };
 
         log.debug("Echoed: {s}", .{buffer[0..recv_length]});
@@ -46,11 +55,11 @@ fn echo_frame(rt: *Runtime, server: *const Socket) !void {
 }
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa: std.heap.DebugAllocator(.{}) = .init;
     const allocator = gpa.allocator();
     defer _ = gpa.deinit();
 
-    var tardy = try Tardy.init(allocator, .{
+    var tardy: Tardy = try .init(allocator, .{
         .threading = .single,
         .pooling = .static,
         .size_tasks_initial = 256,
@@ -61,7 +70,7 @@ pub fn main() !void {
     const host = "0.0.0.0";
     const port = 9862;
 
-    const server = try Socket.init(.{ .tcp = .{ .host = host, .port = port } });
+    const server: Socket = try .init(.{ .tcp = .{ .host = host, .port = port } });
     try server.bind();
     try server.listen(1024);
 

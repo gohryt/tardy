@@ -1,7 +1,7 @@
 const std = @import("std");
 const assert = std.debug.assert;
-
 const Atomic = std.atomic.Value;
+const testing = std.testing;
 
 pub fn SpscAtomicRing(comptime T: type) type {
     return struct {
@@ -49,8 +49,6 @@ pub fn SpscAtomicRing(comptime T: type) type {
         }
     };
 }
-
-const testing = std.testing;
 
 test "SpscAtomicRing: Fill and Empty" {
     const size: u32 = 128;

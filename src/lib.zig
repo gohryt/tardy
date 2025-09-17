@@ -1,27 +1,8 @@
 const std = @import("std");
-const builtin = @import("builtin");
 const assert = std.debug.assert;
-const log = std.log.scoped(.tardy);
-
 const Atomic = std.atomic.Value;
+const builtin = @import("builtin");
 
-pub const Frame = @import("frame/lib.zig").Frame;
-
-pub const Runtime = @import("runtime/lib.zig").Runtime;
-pub const Task = @import("runtime/task.zig").Task;
-
-pub const Spsc = @import("channel/spsc.zig").Spsc;
-
-pub const Timer = @import("runtime/timer.zig").Timer;
-pub const File = @import("fs/lib.zig").File;
-pub const Dir = @import("fs/lib.zig").Dir;
-pub const Path = @import("fs/lib.zig").Path;
-pub const Stat = @import("fs/lib.zig").Stat;
-
-pub const Socket = @import("net/lib.zig").Socket;
-pub const Stream = @import("stream.zig").Stream;
-
-// Results
 pub const AcceptResult = @import("aio/completion.zig").AcceptResult;
 pub const ConnectResult = @import("aio/completion.zig").ConnectResult;
 pub const RecvResult = @import("aio/completion.zig").RecvResult;
@@ -34,23 +15,33 @@ pub const StatResult = @import("aio/completion.zig").StatResult;
 pub const CreateDirResult = @import("aio/completion.zig").CreateDirResult;
 pub const DeleteResult = @import("aio/completion.zig").DeleteResult;
 pub const DeleteTreeResult = @import("aio/completion.zig").DeleteTreeResult;
-
-pub const ZeroCopy = @import("core/zero_copy.zig").ZeroCopy;
-pub const Pool = @import("core/pool.zig").Pool;
-pub const PoolKind = @import("core/pool.zig").PoolKind;
-pub const Queue = @import("core/queue.zig").Queue;
-
-/// Cross-platform abstractions.
-/// For the `std.posix` interface types.
-pub const Cross = @import("cross/lib.zig");
-
+const Completion = @import("aio/completion.zig").Completion;
 pub const auto_async_match = @import("aio/lib.zig").auto_async_match;
 const async_to_type = @import("aio/lib.zig").async_to_type;
 const AsyncIO = @import("aio/lib.zig").Async;
 pub const AsyncType = @import("aio/lib.zig").AsyncType;
 const AsyncOptions = @import("aio/lib.zig").AsyncOptions;
-const Completion = @import("aio/completion.zig").Completion;
+pub const Spsc = @import("channel/spsc.zig").Spsc;
+pub const Pool = @import("core/pool.zig").Pool;
+pub const PoolKind = @import("core/pool.zig").PoolKind;
+pub const Queue = @import("core/queue.zig").Queue;
+pub const ZeroCopy = @import("core/zero_copy.zig").ZeroCopy;
+/// Cross-platform abstractions.
+/// For the `std.posix` interface types.
+pub const Cross = @import("cross/lib.zig");
+pub const Frame = @import("frame/lib.zig").Frame;
+pub const File = @import("fs/lib.zig").File;
+pub const Dir = @import("fs/lib.zig").Dir;
+pub const Path = @import("fs/lib.zig").Path;
+pub const Stat = @import("fs/lib.zig").Stat;
+pub const Socket = @import("net/lib.zig").Socket;
+pub const Runtime = @import("runtime/lib.zig").Runtime;
+pub const Task = @import("runtime/task.zig").Task;
+pub const Timer = @import("runtime/timer.zig").Timer;
 
+const log = std.log.scoped(.tardy);
+
+// Results
 pub const TardyThreading = union(enum) {
     single,
     multi: usize,
@@ -100,18 +91,18 @@ pub fn Tardy(comptime selected_aio_type: AsyncType) type {
     const AioInnerType = comptime async_to_type(aio_type);
     return struct {
         const Self = @This();
-        aios: std.ArrayListUnmanaged(*AioInnerType),
+        aios: std.ArrayList(*AioInnerType),
         allocator: std.mem.Allocator,
         options: TardyOptions,
         mutex: std.Thread.Mutex = .{},
 
         pub fn init(allocator: std.mem.Allocator, options: TardyOptions) !Self {
-            log.debug("aio backend: {s}", .{@tagName(aio_type)});
+            log.debug("aio backend: {t}", .{aio_type});
 
             return .{
                 .allocator = allocator,
                 .options = options,
-                .aios = try std.ArrayListUnmanaged(*AioInnerType).initCapacity(allocator, 0),
+                .aios = try .initCapacity(allocator, 0),
             };
         }
 
@@ -129,7 +120,7 @@ pub fn Tardy(comptime selected_aio_type: AsyncType) type {
                 var io = try self.allocator.create(AioInnerType);
                 errdefer self.allocator.destroy(io);
 
-                io.* = try AioInnerType.init(self.allocator, options);
+                io.* = try .init(self.allocator, options);
                 errdefer io.inner_deinit(self.allocator);
 
                 try self.aios.append(self.allocator, io);
@@ -143,7 +134,7 @@ pub fn Tardy(comptime selected_aio_type: AsyncType) type {
             };
             errdefer aio.deinit(self.allocator);
 
-            return try Runtime.init(self.allocator, aio, .{
+            return try .init(self.allocator, aio, .{
                 .id = id,
                 .pooling = self.options.pooling,
                 .size_tasks_initial = self.options.size_tasks_initial,
@@ -170,7 +161,7 @@ pub fn Tardy(comptime selected_aio_type: AsyncType) type {
             };
 
             // for post-spawn syncing
-            var spawned_count = Atomic(usize).init(0);
+            var spawned_count: Atomic(usize) = .init(0);
             const spawning_count = runtime_count - 1;
 
             var runtime = try self.spawn_runtime(0, .{
@@ -184,7 +175,7 @@ pub fn Tardy(comptime selected_aio_type: AsyncType) type {
             assert(runtime_count > 0);
             log.info("thread count: {d}", .{runtime_count});
 
-            var threads = try std.ArrayListUnmanaged(std.Thread).initCapacity(
+            var threads: std.ArrayList(std.Thread) = try .initCapacity(
                 self.allocator,
                 runtime_count -| 1,
             );
@@ -194,11 +185,11 @@ pub fn Tardy(comptime selected_aio_type: AsyncType) type {
                 threads.deinit(self.allocator);
             }
             // for in-spawn id assignment
-            var spawn_id = Atomic(usize).init(1);
+            var spawn_id: Atomic(usize) = .init(1);
 
             for (0..spawning_count) |_| {
                 const current_index = spawn_id.fetchAdd(1, .monotonic);
-                const handle = try std.Thread.spawn(.{}, struct {
+                const handle: std.Thread = try .spawn(.{}, struct {
                     fn thread_init(
                         tardy: *Self,
                         options: TardyOptions,
@@ -230,7 +221,7 @@ pub fn Tardy(comptime selected_aio_type: AsyncType) type {
                         // this is because the runtime is allocate on our stack and others might be checking
                         // our running status or attempting to wake us.
                         _ = count.fetchSub(1, .acquire);
-                        while (count.load(.acquire) > 0) std.time.sleep(std.time.ns_per_s);
+                        while (count.load(.acquire) > 0) std.Thread.sleep(std.time.ns_per_s);
                     }
                 }.thread_init, .{
                     self,
@@ -266,7 +257,7 @@ pub fn Tardy(comptime selected_aio_type: AsyncType) type {
                 @TypeOf(entry_params),
             ) anyerror!void,
         ) !void {
-            const handle = try std.Thread.spawn(.{}, struct {
+            const handle: std.Thread = try .spawn(.{}, struct {
                 fn entry_in_new_thread(tardy: *Self, ip: @TypeOf(entry_params)) void {
                     tardy.entry(ip, entry_func) catch unreachable;
                 }

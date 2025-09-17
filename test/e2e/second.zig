@@ -1,20 +1,20 @@
 const std = @import("std");
 const assert = std.debug.assert;
-const log = @import("lib.zig").log;
 
 const Runtime = @import("tardy").Runtime;
-const SharedParams = @import("lib.zig").SharedParams;
-
 const Socket = @import("tardy").Socket;
-const TcpServerChain = @import("tcp_chain.zig").TcpServerChain;
+
+const log = @import("lib.zig").log;
+const SharedParams = @import("lib.zig").SharedParams;
 const TcpClientChain = @import("tcp_chain.zig").TcpClientChain;
+const TcpServerChain = @import("tcp_chain.zig").TcpServerChain;
 
 pub const STACK_SIZE = 1024 * 1024 * 8;
 threadlocal var tcp_client_chain_count: usize = 1;
 threadlocal var tcp_server_chain_count: usize = 1;
 
 pub fn start_frame(rt: *Runtime, shared_params: *const SharedParams) !void {
-    var prng = std.Random.DefaultPrng.init(shared_params.seed);
+    var prng: std.Random.DefaultPrng = .init(shared_params.seed);
     const rand = prng.random();
 
     const port: u16 = rand.intRangeLessThan(u16, 30000, @intCast(std.math.maxInt(u16)));
@@ -33,7 +33,7 @@ pub fn start_frame(rt: *Runtime, shared_params: *const SharedParams) !void {
     const client_chain_ptr = try rt.allocator.create(TcpClientChain);
     errdefer rt.allocator.destroy(client_chain_ptr);
 
-    server_chain_ptr.* = try TcpServerChain.init(rt.allocator, chain, 4096);
+    server_chain_ptr.* = try .init(rt.allocator, chain, 4096);
     client_chain_ptr.* = try server_chain_ptr.derive_client_chain();
 
     try rt.spawn(

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# TODO: implement this test in Zig
 
 set -e
 count=$1
@@ -14,5 +15,5 @@ do
     zig build -Dasync=io_uring test_e2e -- "$rand64"
     zig build -Dasync=epoll test_e2e -- "$rand64"
     zig build -Dasync=poll test_e2e -- "$rand64"
-    # echo "$rand64 passed"
+    echo "$rand64 passed"
 done

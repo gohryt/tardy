@@ -1,18 +1,16 @@
 const std = @import("std");
-const log = std.log.scoped(.@"tardy/example/shove");
 
-const Runtime = @import("tardy").Runtime;
-const Task = @import("tardy").Task;
-const Tardy = @import("tardy").Tardy(.auto);
 const Cross = @import("tardy").Cross;
-
-const File = @import("tardy").File;
 const Dir = @import("tardy").Dir;
-
+const File = @import("tardy").File;
 const OpenFileResult = @import("tardy").OpenFileResult;
 const ReadResult = @import("tardy").ReadResult;
+const Runtime = @import("tardy").Runtime;
+const Task = @import("tardy").Task;
 const WriteResult = @import("tardy").WriteResult;
 
+const Tardy = @import("tardy").Tardy(.auto);
+const log = std.log.scoped(.@"tardy/example/shove");
 pub const std_options: std.Options = .{ .log_level = .debug };
 
 fn main_frame(rt: *Runtime, name: [:0]const u8) !void {
@@ -26,11 +24,11 @@ fn main_frame(rt: *Runtime, name: [:0]const u8) !void {
 }
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{ .thread_safe = true }){};
+    var gpa: std.heap.DebugAllocator(.{ .thread_safe = true }) = .init;
     const allocator = gpa.allocator();
     defer _ = gpa.deinit();
 
-    var tardy = try Tardy.init(allocator, .{
+    var tardy: Tardy = try .init(allocator, .{
         .threading = .single,
         .pooling = .grow,
         .size_tasks_initial = 1,
@@ -44,7 +42,7 @@ pub fn main() !void {
 
     const file_name: [:0]const u8 = blk: {
         while (args.next()) |arg| : (i += 1) if (i == 1) break :blk arg;
-        try std.io.getStdOut().writeAll("file name not passed in: ./shove [file name]");
+        try std.fs.File.stdout().writeAll("file name not passed in: ./shove [file name]");
         return;
     };
 

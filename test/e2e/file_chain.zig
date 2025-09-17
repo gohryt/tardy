@@ -1,18 +1,17 @@
 const std = @import("std");
-const log = std.log.scoped(.@"tardy/e2e/first");
 const assert = std.debug.assert;
+const testing = std.testing;
 
-const Runtime = @import("tardy").Runtime;
-
-const Path = @import("tardy").Path;
-const File = @import("tardy").File;
-const Dir = @import("tardy").Dir;
-
-const OpenFileResult = @import("tardy").OpenFileResult;
-const ReadResult = @import("tardy").ReadResult;
-const WriteResult = @import("tardy").WriteResult;
 const DeleteResult = @import("tardy").DeleteResult;
+const Dir = @import("tardy").Dir;
+const File = @import("tardy").File;
+const OpenFileResult = @import("tardy").OpenFileResult;
+const Path = @import("tardy").Path;
+const ReadResult = @import("tardy").ReadResult;
+const Runtime = @import("tardy").Runtime;
+const WriteResult = @import("tardy").WriteResult;
 
+const log = std.log.scoped(.@"tardy/e2e/first");
 pub const FileChain = struct {
     const Step = enum {
         create,
@@ -54,10 +53,10 @@ pub const FileChain = struct {
     }
 
     pub fn generate_random_chain(allocator: std.mem.Allocator, seed: u64) ![]Step {
-        var prng = std.Random.DefaultPrng.init(seed);
+        var prng: std.Random.DefaultPrng = .init(seed);
         const rand = prng.random();
 
-        var list = try std.ArrayListUnmanaged(Step).initCapacity(allocator, 0);
+        var list: std.ArrayList(Step) = try .initCapacity(allocator, 0);
         defer list.deinit(allocator);
         try list.append(allocator, .create);
 
@@ -116,11 +115,11 @@ pub const FileChain = struct {
         while (chain.index < chain.steps.len) : (chain.index += 1) {
             switch (chain.steps[chain.index]) {
                 .create => {
-                    const file = try File.create(rt, chain.path, .{ .mode = .read_write });
+                    const file: File = try .create(rt, chain.path, .{ .mode = .read_write });
                     chain.file = file;
                 },
                 .open => {
-                    const file = try File.open(rt, chain.path, .{ .mode = .read_write });
+                    const file: File = try .open(rt, chain.path, .{ .mode = .read_write });
                     chain.file = file;
                 },
                 .read => {
@@ -152,8 +151,6 @@ pub const FileChain = struct {
         }
     }
 };
-
-const testing = std.testing;
 
 test "FileChain: Invalid Exists" {
     const chain: []const FileChain.Step = &.{

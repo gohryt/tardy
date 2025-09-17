@@ -1,17 +1,15 @@
 const std = @import("std");
-const log = std.log.scoped(.@"tardy/aio");
 const assert = std.debug.assert;
-const builtin = @import("builtin");
-const Completion = @import("completion.zig").Completion;
-
-const Timespec = @import("../lib.zig").Timespec;
-const Path = @import("../fs/lib.zig").Path;
-
 const Atomic = std.atomic.Value;
+const builtin = @import("builtin");
 
 const PoolKind = @import("../core/pool.zig").PoolKind;
+const Path = @import("../fs/lib.zig").Path;
+const Timespec = @import("../lib.zig").Timespec;
 const Socket = @import("../net/lib.zig").Socket;
+const Completion = @import("completion.zig").Completion;
 
+const log = std.log.scoped(.@"tardy/aio");
 pub const AsyncKind = enum {
     auto,
     io_uring,
@@ -219,7 +217,7 @@ pub const Async = struct {
 
     pub fn queue_job(self: *Async, task: usize, job: AsyncSubmission) !void {
         assert(self.attached);
-        log.debug("queuing up job={s} at index={d}", .{ @tagName(job), task });
+        log.debug("queuing up job={t} at index={d}", .{ job, task });
         try self.vtable.queue_job(self.runner, task, job);
     }
 

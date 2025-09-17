@@ -1,5 +1,6 @@
 const std = @import("std");
 const assert = std.debug.assert;
+const testing = std.testing;
 
 pub fn ZeroCopy(comptime T: type) type {
     return struct {
@@ -113,12 +114,10 @@ pub fn ZeroCopy(comptime T: type) type {
     };
 }
 
-const testing = std.testing;
-
 test "ZeroCopy: First" {
     const garbage: []const u8 = &[_]u8{212} ** 128;
 
-    var zc = try ZeroCopy(u8).init(testing.allocator, 512);
+    var zc: ZeroCopy(u8) = try .init(testing.allocator, 512);
     defer zc.deinit();
 
     const write_area = try zc.get_write_area(garbage.len);
@@ -129,7 +128,7 @@ test "ZeroCopy: First" {
 }
 
 test "ZeroCopy: Growth" {
-    var zc = try ZeroCopy(u8).init(testing.allocator, 16);
+    var zc: ZeroCopy(u8) = try .init(testing.allocator, 16);
     defer zc.deinit();
 
     const large_data = &[_]u8{1} ** 32;
@@ -142,7 +141,7 @@ test "ZeroCopy: Growth" {
 }
 
 test "ZeroCopy: Multiple Writes" {
-    var zc = try ZeroCopy(u8).init(testing.allocator, 64);
+    var zc: ZeroCopy(u8) = try .init(testing.allocator, 64);
     defer zc.deinit();
 
     const data1 = "Hello, ";
@@ -160,7 +159,7 @@ test "ZeroCopy: Multiple Writes" {
 }
 
 test "ZeroCopy: Zero Size Write" {
-    var zc = try ZeroCopy(u8).init(testing.allocator, 8);
+    var zc: ZeroCopy(u8) = try .init(testing.allocator, 8);
     defer zc.deinit();
 
     const area = try zc.get_write_area(0);

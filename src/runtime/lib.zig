@@ -1,17 +1,16 @@
 const std = @import("std");
 const assert = std.debug.assert;
-const log = std.log.scoped(.@"tardy/runtime");
 
-const Frame = @import("../frame/lib.zig").Frame;
 const Async = @import("../aio/lib.zig").Async;
-const Scheduler = @import("./scheduler.zig").Scheduler;
-
 const PoolKind = @import("../core/pool.zig").PoolKind;
 const Queue = @import("../core/queue.zig").Queue;
-
-const Task = @import("task.zig").Task;
-const Storage = @import("storage.zig").Storage;
+const Frame = @import("../frame/lib.zig").Frame;
 const Timespec = @import("../lib.zig").Timespec;
+const Scheduler = @import("./scheduler.zig").Scheduler;
+const Storage = @import("storage.zig").Storage;
+const Task = @import("task.zig").Task;
+
+const log = std.log.scoped(.@"tardy/runtime");
 
 const RuntimeOptions = struct {
     id: usize,
@@ -146,10 +145,10 @@ pub const Runtime = struct {
                         self.current_task = null;
                     },
                     .wait_for_trigger => if (self.scheduler.triggers.is_set(index)) {
-                        log.debug("{d} - trigger={d} | state={s}", .{
+                        log.debug("{d} - trigger={d} | state={t}", .{
                             self.id,
                             index,
-                            @tagName(task.state),
+                            task.state,
                         });
 
                         self.scheduler.triggers.unset(index);
